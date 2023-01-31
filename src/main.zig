@@ -1,23 +1,28 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const os = std.os;
 const Vector = std.meta.Vector;
 const print = std.debug.print;
+const stdout_file = std.io.getStdOut().writer();
+var bw = std.io.bufferedWriter(stdout_file);
+const stdout = bw.writer();
 
 const PI: f32 = 3.14159265358979323846;
 
 const C1_RES: u16 = 32;
-const C2_RES: u16 = 128;
+const C2_RES: u16 = 64;
 const R1: f32 = 2;
-const R2: f32 = 5;
+const R2: f32 = 6;
 
-const SCREEN_SIZE: u16 = 16;
-const SCREEN_RES: u16 = 31;
+const SCREEN_SIZE: u16 = 20;
+const SCREEN_RES: u16 = 25;
 const SCREEN_POS: f32 = -32;
 
-const ASCII = ".,-~:;=!*#$@";
+const ASCII = ".,-~:;=!*%#$";
 
-const AX_STEP: f32 = 0.0017;
-const AY_STEP: f32 = 0.0017;
-const AZ_STEP: f32 = 0.0017;
+const AX_STEP: f32 = 0.002;
+const AY_STEP: f32 = 0.001;
+const AZ_STEP: f32 = 0.0025;
 
 
 
@@ -97,9 +102,9 @@ const Camera = struct {
             var sfX: f32 = dX + @intToFloat(f32, SCREEN_SIZE) / 2;
             var sfY: f32 = dY + @intToFloat(f32, SCREEN_SIZE) / 2;
 
-            if (sfX >= 0 and sfX <= SCREEN_SIZE and sfY >= 0 and sfY <= SCREEN_SIZE) {
-                var sX: u16 = @floatToInt(u16, sfX * @intToFloat(f32, SCREEN_RES) / @intToFloat(f32, SCREEN_SIZE));
-                var sY: u16 = @floatToInt(u16, sfY * @intToFloat(f32, SCREEN_RES) / @intToFloat(f32, SCREEN_SIZE));
+            var sX: u16 = @floatToInt(u16, sfX * @intToFloat(f32, SCREEN_RES) / @intToFloat(f32, SCREEN_SIZE));
+            var sY: u16 = @floatToInt(u16, sfY * @intToFloat(f32, SCREEN_RES) / @intToFloat(f32, SCREEN_SIZE));
+            if (sX >= 0 and sX <= SCREEN_RES - 1 and sY >= 0 and sY <= SCREEN_RES - 1) {
                 if (screen_distance_buffer[sX][sY] == 0 or screen_distance_buffer[sX][sY] > distance) {
                     screen_distance_buffer[sX][sY] = distance;
                     var ray: Vector(3, f32) = @Vector(3, f32) {0, 0, -1};
@@ -125,9 +130,7 @@ const Camera = struct {
     }
 
     pub fn display(self: *Camera, ascii: *const [12:0]u8) !void {
-        const stdout_file = std.io.getStdOut().writer();
-        var bw = std.io.bufferedWriter(stdout_file);
-        const stdout = bw.writer();
+        
         for (self.screen) |row| {
             for (row) |pixel_value| {
                 var char_index: u8 = @floatToInt(u8, @round(pixel_value * @as(f32, 12)));
@@ -156,25 +159,34 @@ pub fn abs(value: f32) f32 {
 }
 
 
-pub fn main() !void {
-    var donut = Donut {};
-    var camera = Camera {};
+pub fn timestamp() u32 {
+    var ts: os.timespec = undefined;
+    os.clock_gettime(os.CLOCK.REALTIME, &ts) catch |err| switch (err) {error.UnsupportedClock, error.Unexpected => return 0};
+    return @intCast(u32, ts.tv_nsec) / 1000_000;
+}
 
+
+pub fn main() !void {
     var ax: f32 = 0;
     var ay: f32 = 0;
     var az: f32 = 0;
 
-    donut.init();
+    var rotation_factor: f32 = 1;
+    var last_time: u32 = timestamp();
+
+    var donut = Donut {};
+    var camera = Camera {};
     
+    donut.init();
 
     while (ax < 2 * PI) {
         donut.rotate(ax, ay, az);
         camera.capture(&donut);
         try camera.display(ASCII);
 
-        ax += AX_STEP;
-        ay += AY_STEP;
-        az += AZ_STEP;
+        ax += AX_STEP * rotation_factor;
+        ay += AY_STEP * rotation_factor;
+        az += AZ_STEP * rotation_factor;
 
         if (ax > 2 * PI) {
             ax -= 2 * PI;
@@ -185,5 +197,14 @@ pub fn main() !void {
         if (az > 2 * PI) {
             az -= 2 * PI;
         }
+
+        var time: u32 = timestamp();
+        if (time > last_time) {
+            rotation_factor = @intToFloat(f32, time - last_time);
+            print("FRAME: {}ms\n", .{time - last_time});
+        }
+        
+
+        last_time = time;
     }
 }
