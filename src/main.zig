@@ -115,7 +115,7 @@ const Camera = struct {
         }
     }
 
-    pub fn get_brightness(vec1: *Vector(3, f32), vec2: *Vector(3, f32)) f32 {
+    fn get_brightness(vec1: *Vector(3, f32), vec2: *Vector(3, f32)) f32 {
         var dot: f32 = vec1.*[0] * vec2.*[0] + vec1.*[1] * vec2.*[1] + vec1.*[2] * vec2.*[2];
         var vec1_length: f32 = @sqrt(vec1.*[0] * vec1.*[0] + vec1.*[1] * vec1.*[1] + vec1.*[2] * vec1.*[2]);
         var vec2_length: f32 = @sqrt(vec2.*[0] * vec2.*[0] + vec2.*[1] * vec2.*[1] + vec2.*[2] * vec2.*[2]);
@@ -179,7 +179,7 @@ pub fn main() !void {
     
     donut.init();
 
-    while (ax < 2 * PI) {
+    while (true) {
         donut.rotate(ax, ay, az);
         camera.capture(&donut);
         try camera.display(ASCII);
@@ -203,8 +203,6 @@ pub fn main() !void {
             rotation_factor = @intToFloat(f32, time - last_time);
             print("FRAME: {}ms\n", .{time - last_time});
         }
-        
-
         last_time = time;
     }
 }
